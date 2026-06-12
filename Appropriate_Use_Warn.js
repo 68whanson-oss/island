@@ -1,11 +1,11 @@
 /**
  * Island RPA: Page Blur with Appropriate Use Warning Gate
  *
- * @version 1.7.0
+ * @version 1.8.0
  * @author Island RPA Automation
  */
 
-$('document').ready(function () {
+(function () {
     var BLUR = '2px';
 
     function applyBlur() {
@@ -21,6 +21,7 @@ $('document').ready(function () {
     }
 
     function showWarning() {
+        console.log('[Appropriate Use Warn] island:', typeof island, 'notifications:', typeof island !== 'undefined' && island.notifications);
         island.notifications.alert({
             notificationId: 'warned-access-page',
             title: 'Appropriate Use Warning',
@@ -31,6 +32,8 @@ $('document').ready(function () {
         });
     }
 
+    // Execute directly — Island RPAs run after DOM is ready;
+    // no jQuery dependency needed.
     applyBlur();
     showWarning();
-});
+})();
