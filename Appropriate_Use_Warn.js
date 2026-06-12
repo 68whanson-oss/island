@@ -139,23 +139,25 @@
         }
 
         try {
-            if (typeof island === 'undefined' || !island.toaster) {
-                log('Island Toaster API not available. Retrying...', 'warn');
+            if (typeof island === 'undefined') {
+                log('Island API object not available. Retrying...', 'warn');
 
                 if (retryCount < CONFIG.maxRetries) {
                     retryCount++;
                     setTimeout(displayIslandToast, CONFIG.retryDelay);
                     return;
                 } else {
-                    throw new Error('Island Toaster API not available after maximum retries');
+                    throw new Error('Island API not available after maximum retries');
                 }
             }
 
-            island.toaster.show({
-                messageTemplate: CONFIG.toastMessageName,
+            // Log available Island API properties to aid debugging
+            log(`Island API keys: ${Object.keys(island).join(', ')}`);
+
+            // Invoke the pre-configured toast message template from Island console
+            island.toastMessage.show(CONFIG.toastMessageName, {
                 onAction: handleToastAction,
-                onDismiss: handleToastDismiss,
-                persistent: true
+                onDismiss: handleToastDismiss
             });
 
             toastDisplayed = true;
