@@ -1,7 +1,7 @@
 /**
  * Island RPA: Page Blur with Appropriate Use Warning Gate
  *
- * @version 1.12.0
+ * @version 1.13.0
  * @author Island RPA Automation
  */
 
@@ -29,13 +29,7 @@
             primaryButton: 'Accept',
             secondaryButton: 'Go Back',
         }).then(function (response) {
-            console.log('[AUW] dialog response:', JSON.stringify(response));
-            var isSecondary = response && (
-                response.action === 'secondary' ||
-                response.button === 'secondary' ||
-                response.action === 'secondaryButton'
-            );
-            if (isSecondary) {
+            if (response && response.trigger === 'secondary-click') {
                 window.history.back();
             } else {
                 removeBlur();
