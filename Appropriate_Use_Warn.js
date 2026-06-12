@@ -1,7 +1,7 @@
 /**
  * Island RPA: Page Blur with Appropriate Use Warning Gate
  *
- * @version 1.9.0
+ * @version 1.10.0
  * @author Island RPA Automation
  */
 
@@ -21,14 +21,12 @@
     }
 
     function showWarning() {
-        console.log('[Appropriate Use Warn] island:', typeof island, 'notifications:', typeof island !== 'undefined' && island.notifications);
         island.notifications.alert({
             notificationId: 'warned-access-page',
             title: 'Appropriate Use Warning',
             message: 'Accessing this site is discouraged during business hours. If you believe this is in error, please submit a Help Desk Ticket.',
-            sentiment: 'warning',
+            sentiment: 'negative',
             primaryButton: 'Accept',
-            secondaryButton: 'Go Back',
         });
     }
 
