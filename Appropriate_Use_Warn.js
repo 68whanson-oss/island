@@ -154,10 +154,14 @@
             // Log available Island API properties to aid debugging
             log(`Island API keys: ${Object.keys(island).join(', ')}`);
 
-            // Invoke the pre-configured toast message template from Island console
-            island.toastMessage.show(CONFIG.toastMessageName, {
-                onAction: handleToastAction,
-                onDismiss: handleToastDismiss
+            // Invoke the pre-configured toast message template from Island console.
+            // Island renders this at the browser chrome level (not in the page DOM).
+            island.showToastMessage(CONFIG.toastMessageName, function(action) {
+                if (action) {
+                    handleToastAction(action);
+                } else {
+                    handleToastDismiss();
+                }
             });
 
             toastDisplayed = true;
