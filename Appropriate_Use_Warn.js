@@ -1,19 +1,18 @@
 /**
  * Island RPA: Page Blur with Appropriate Use Warning Gate
  *
- * Blurs the page and presents the Warned Access Page notification via
- * island.notifications.alert(). The page stays blurred until the user
- * clicks the primary action button.
- *
- * @version 1.5.0
+ * @version 1.6.0
  * @author Island RPA Automation
  */
 
-$(document).ready(function () {
-    const BLUR_INTENSITY = '10px';
+(function () {
+    var BLUR = '10px';
+    var MAX_RETRIES = 20;
+    var RETRY_DELAY = 500;
+    var retries = 0;
 
     function applyBlur() {
-        document.body.style.filter        = `blur(${BLUR_INTENSITY})`;
+        document.body.style.filter        = 'blur(' + BLUR + ')';
         document.body.style.pointerEvents = 'none';
         document.body.style.userSelect    = 'none';
     }
@@ -32,18 +31,24 @@ $(document).ready(function () {
             sentiment: 'warning',
             primaryButton: 'Accept',
             secondaryButton: 'Go Back',
-            onPrimaryAction: function () {
-                removeBlur();
-            },
-            onSecondaryAction: function () {
-                showWarning();
-            },
-            onDismiss: function () {
-                showWarning();
-            }
         });
     }
 
-    applyBlur();
-    showWarning();
-});
+    function tryInit() {
+        if (typeof island !== 'undefined' && island.notifications) {
+            applyBlur();
+            showWarning();
+        } else if (retries < MAX_RETRIES) {
+            retries++;
+            setTimeout(tryInit, RETRY_DELAY);
+        } else {
+            console.error('[Appropriate Use Warn RPA] island.notifications not available after retries.');
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryInit);
+    } else {
+        tryInit();
+    }
+})();
