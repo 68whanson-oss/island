@@ -6,7 +6,7 @@
  *
  * Toast Message: "Warned Access Page"
  *
- * @version 1.1.0
+ * @version 1.2.0
  * @author Island RPA Automation
  */
 
@@ -313,7 +313,7 @@
     }
 
     window.islandPageBlurRPA = {
-        version: '1.1.0',
+        version: '1.2.0',
         removeBlur: removePageBlur,
         getState: () => ({ isBlurred, toastDisplayed, retryCount })
     };
