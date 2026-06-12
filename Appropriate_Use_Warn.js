@@ -1,7 +1,7 @@
 /**
  * Island RPA: Page Blur with Appropriate Use Warning Gate
  *
- * @version 1.8.0
+ * @version 1.9.0
  * @author Island RPA Automation
  */
 
@@ -32,8 +32,15 @@
         });
     }
 
-    // Execute directly — Island RPAs run after DOM is ready;
-    // no jQuery dependency needed.
-    applyBlur();
-    showWarning();
+    function init() {
+        applyBlur();
+        showWarning();
+    }
+
+    // RPA may fire before document.body exists — wait for it if needed.
+    if (document.body) {
+        init();
+    } else {
+        document.addEventListener('DOMContentLoaded', init);
+    }
 })();
