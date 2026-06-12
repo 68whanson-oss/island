@@ -1,12 +1,12 @@
 /**
  * Island RPA: Page Blur with Toast Message Gate
- * 
+ *
  * Purpose: Blur page content and require user acknowledgment via Island Toast
  * before allowing access to the page content.
- * 
+ *
  * Toast Message: "Warned Access Page"
- * 
- * @version 1.0.0
+ *
+ * @version 1.1.0
  * @author Island RPA Automation
  */
 
@@ -23,9 +23,9 @@
         overlayZIndex: 999999,
         logPrefix: '[Island Page Blur RPA]',
         sessionStorageKey: 'island_page_blur_acknowledged',
-        triggerOncePerSession: false, // Set to true if you want one-time per session behavior
-        maxRetries: 3,
-        retryDelay: 1000 // ms
+        triggerOncePerSession: false,
+        maxRetries: 10,
+        retryDelay: 500 // ms
     };
 
     // ============================================================================
@@ -43,7 +43,7 @@
     function log(message, level = 'info') {
         const timestamp = new Date().toISOString();
         const logMessage = `${CONFIG.logPrefix} [${timestamp}] ${message}`;
-        
+
         switch(level) {
             case 'error':
                 console.error(logMessage);
@@ -83,6 +83,10 @@
 
     // ============================================================================
     // PAGE BLUR FUNCTIONALITY
+    //
+    // Island renders its toast messages at the browser chrome level, above the
+    // page DOM. Applying filter:blur to document.body blurs all page content
+    // without affecting Island's toast UI layer.
     // ============================================================================
 
     function applyPageBlur() {
@@ -92,27 +96,9 @@
         }
 
         try {
-            // Overlay uses backdrop-filter to blur content behind it.
-            // pointer-events: all blocks interaction with the page underneath.
-            // Do NOT apply filter to document.body — that would blur the overlay
-            // and any Island toast rendered inside the body as well.
-            const overlay = document.createElement('div');
-            overlay.id = 'island-blur-overlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                backdrop-filter: blur(${CONFIG.blurIntensity});
-                -webkit-backdrop-filter: blur(${CONFIG.blurIntensity});
-                background-color: rgba(255, 255, 255, 0.1);
-                z-index: ${CONFIG.overlayZIndex};
-                pointer-events: all;
-                transition: opacity 0.3s ease-out;
-            `;
-
-            document.documentElement.appendChild(overlay);
+            document.body.style.filter = `blur(${CONFIG.blurIntensity})`;
+            document.body.style.pointerEvents = 'none';
+            document.body.style.userSelect = 'none';
 
             isBlurred = true;
             log('Page blur applied successfully.');
@@ -130,13 +116,9 @@
         }
 
         try {
-            const overlay = document.getElementById('island-blur-overlay');
-            if (overlay) {
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    overlay.remove();
-                }, 300);
-            }
+            document.body.style.filter = '';
+            document.body.style.pointerEvents = '';
+            document.body.style.userSelect = '';
 
             isBlurred = false;
             log('Page blur removed successfully.');
@@ -157,10 +139,9 @@
         }
 
         try {
-            // Check if Island API is available
             if (typeof island === 'undefined' || !island.toaster) {
                 log('Island Toaster API not available. Retrying...', 'warn');
-                
+
                 if (retryCount < CONFIG.maxRetries) {
                     retryCount++;
                     setTimeout(displayIslandToast, CONFIG.retryDelay);
@@ -170,12 +151,11 @@
                 }
             }
 
-            // Display the Island Toast Message
             island.toaster.show({
                 messageTemplate: CONFIG.toastMessageName,
                 onAction: handleToastAction,
                 onDismiss: handleToastDismiss,
-                persistent: true // Prevent auto-dismiss
+                persistent: true
             });
 
             toastDisplayed = true;
@@ -193,8 +173,7 @@
 
     function handleToastAction(action) {
         log(`User selected action: ${action.type || action.button || 'unknown'}`);
-        
-        // Log the user's choice for audit purposes
+
         const auditLog = {
             timestamp: new Date().toISOString(),
             action: action.type || action.button || 'unknown',
@@ -202,36 +181,36 @@
             url: window.location.href,
             userAgent: navigator.userAgent
         };
-        
+
         log(`Audit Log: ${JSON.stringify(auditLog)}`);
 
-        // Mark session as acknowledged
         markSessionAcknowledged();
-
-        // Unblur the page
         removePageBlur();
 
-        // Optional: Send audit log to backend
         // sendAuditLog(auditLog);
     }
 
     function handleToastDismiss() {
-        log('Toast dismissed without action.', 'warn');
-        
-        // Optionally keep page blurred if dismissed without action
-        // For this implementation, we'll still unblur on dismiss
-        markSessionAcknowledged();
-        removePageBlur();
+        // User dismissed without clicking an action button.
+        // Page must remain blurred — re-display the toast.
+        log('Toast dismissed without action. Re-displaying toast.', 'warn');
+        toastDisplayed = false;
+        displayIslandToast();
     }
 
     // ============================================================================
     // FALLBACK HANDLER
+    //
+    // Appended to document.documentElement (not document.body) so it is not
+    // subject to the blur filter applied to document.body.
     // ============================================================================
 
     function handleFallback() {
         log('Initiating fallback mode due to Island Toast unavailability.', 'warn');
-        
-        // Create a simple modal fallback
+
+        const existing = document.getElementById('island-fallback-modal');
+        if (existing) return;
+
         const fallbackModal = document.createElement('div');
         fallbackModal.id = 'island-fallback-modal';
         fallbackModal.style.cssText = `
@@ -248,12 +227,11 @@
             text-align: center;
             font-family: system-ui, -apple-system, sans-serif;
         `;
-        
+
         fallbackModal.innerHTML = `
             <h2 style="margin-top: 0; color: #d32f2f;">Access Warning</h2>
             <p style="margin: 20px 0; line-height: 1.6; color: #333;">
-                Island Toast Message system is unavailable. 
-                Please contact your IT administrator.
+                You must acknowledge this warning before accessing the page.
             </p>
             <button id="island-fallback-btn" style="
                 background: #1976d2;
@@ -266,9 +244,10 @@
                 font-weight: 500;
             ">Acknowledge</button>
         `;
-        
-        document.body.appendChild(fallbackModal);
-        
+
+        // Attach to <html>, not <body>, so body's blur filter doesn't apply here
+        document.documentElement.appendChild(fallbackModal);
+
         document.getElementById('island-fallback-btn').addEventListener('click', function() {
             log('User acknowledged fallback modal.');
             fallbackModal.remove();
@@ -282,17 +261,13 @@
     // ============================================================================
 
     function sendAuditLog(auditData) {
-        // Implement your audit log endpoint here
-        // Example:
         /*
         fetch('https://your-audit-endpoint.com/api/logs', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(auditData)
         })
-        .then(response => log('Audit log sent successfully.'))
+        .then(() => log('Audit log sent successfully.'))
         .catch(error => log(`Failed to send audit log: ${error.message}`, 'error'));
         */
     }
@@ -305,16 +280,12 @@
         log('Initializing Island Page Blur RPA...');
 
         try {
-            // Check if already acknowledged this session
             if (checkSessionAcknowledgment()) {
                 log('RPA execution skipped - already acknowledged this session.');
                 return;
             }
 
-            // Apply blur immediately
             applyPageBlur();
-
-            // Display Island Toast
             displayIslandToast();
 
             log('Island Page Blur RPA initialized successfully.');
@@ -329,23 +300,16 @@
     // EXECUTION
     // ============================================================================
 
-    // Wait for DOM to be ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initialize);
     } else {
-        // DOM already loaded
         initialize();
     }
 
-    // Expose functions for debugging (optional, remove in production if needed)
     window.islandPageBlurRPA = {
-        version: '1.0.0',
+        version: '1.1.0',
         removeBlur: removePageBlur,
-        getState: () => ({
-            isBlurred,
-            toastDisplayed,
-            retryCount
-        })
+        getState: () => ({ isBlurred, toastDisplayed, retryCount })
     };
 
 })();
